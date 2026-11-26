@@ -1,0 +1,759 @@
+{
+  "info": {
+    "_postman_id": "58ee5944-568c-427c-b1d4-69654742a01d",
+    "name": "Restful Booker Platform",
+    "description": "API checks for the Restful Booker Platform: admin authentication and the room lifecycle (create, read, update, delete). Run the folders in order: Rooms uses the token saved by Auth. The \"Known defects\" folder exposes open defects and is left out of the normal run.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login with valid credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"A token cookie is set\", () => {",
+                  "    const token = pm.cookies.get(\"token\");",
+                  "    pm.expect(token, \"token cookie\").to.be.a(\"string\").and.not.empty;",
+                  "    pm.environment.set(\"token\", token);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 3 seconds\", () => pm.expect(pm.response.responseTime).to.be.below(3000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Validate the token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"A valid token is accepted with 200\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "validate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Login with a wrong password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"No token cookie is set\", () => pm.expect(pm.response.headers.get(\"Set-Cookie\") || \"\").not.to.include(\"token=\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"wrong-password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Validate an invalid token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"An invalid token is rejected with 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/validate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "validate"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"not-a-real-token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Rooms",
+      "item": [
+        {
+          "name": "List rooms (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"Body has a list of rooms\", () => {",
+                  "    const body = pm.response.json();",
+                  "    pm.expect(body.rooms).to.be.an(\"array\");",
+                  "});",
+                  "",
+                  "pm.test(\"Every room has the main fields\", () => {",
+                  "    pm.response.json().rooms.forEach(room => {",
+                  "        pm.expect(room).to.include.keys(\"roomid\", \"roomName\", \"type\", \"accessible\", \"roomPrice\");",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create a room",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A unique name for every run, so runs never clash on the shared demo",
+                  "pm.environment.set(\"roomName\", \"PM\" + Math.floor(1000 + Math.random() * 9000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const room = pm.response.json();",
+                  "pm.environment.set(\"roomId\", room.roomid);",
+                  "",
+                  "pm.test(\"The room is returned with the data that was sent\", () => {",
+                  "    pm.expect(room.roomName).to.eql(pm.environment.get(\"roomName\"));",
+                  "    pm.expect(room.type).to.eql(pm.iterationData.get(\"roomType\") || pm.environment.get(\"roomType\"));",
+                  "    pm.expect(room.roomPrice).to.eql(Number(pm.iterationData.get(\"roomPrice\") || pm.environment.get(\"roomPrice\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomName\": \"{{roomName}}\",\n  \"type\": \"{{roomType}}\",\n  \"accessible\": true,\n  \"image\": \"/images/room2.jpg\",\n  \"description\": \"Room created by the Postman collection.\",\n  \"features\": [\"WiFi\", \"TV\"],\n  \"roomPrice\": {{roomPrice}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Get the created room",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"It is the room that was created\", () => {",
+                  "    pm.expect(pm.response.json().roomName).to.eql(pm.environment.get(\"roomName\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                "{{roomId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update the room price",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"The new price is saved\", () => pm.expect(pm.response.json().roomPrice).to.eql(199));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                "{{roomId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomName\": \"{{roomName}}\",\n  \"type\": \"{{roomType}}\",\n  \"accessible\": true,\n  \"image\": \"/images/room2.jpg\",\n  \"description\": \"Room created by the Postman collection.\",\n  \"features\": [\"WiFi\", \"TV\"],\n  \"roomPrice\": 199\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create a room without a token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "",
+                  "// If a room was created anyway, delete it so the demo is left clean",
+                  "if (pm.response.code === 201) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get(\"baseUrl\") + \"/api/room/\" + pm.response.json().roomid,",
+                  "        method: \"DELETE\",",
+                  "        header: { Cookie: \"token=\" + pm.environment.get(\"token\") }",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomName\": \"{{roomName}}\",\n  \"type\": \"{{roomType}}\",\n  \"accessible\": true,\n  \"image\": \"/images/room2.jpg\",\n  \"description\": \"Room created by the Postman collection.\",\n  \"features\": [\"WiFi\", \"TV\"],\n  \"roomPrice\": {{roomPrice}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Sent with cookies disabled (protocolProfileBehavior.disableCookies), so the token saved by the login is not sent."
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Create a room with an unknown type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"The error explains the allowed types\", () => {",
+                  "    pm.expect(pm.response.json().fieldErrors).to.include(",
+                  "        \"Type can only contain the room options Single, Double, Twin, Family or Suite\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomName\": \"{{roomName}}\",\n  \"type\": \"Penthouse\",\n  \"accessible\": true,\n  \"image\": \"/images/room2.jpg\",\n  \"description\": \"Room created by the Postman collection.\",\n  \"features\": [\"WiFi\", \"TV\"],\n  \"roomPrice\": {{roomPrice}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete the room",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 202\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                "{{roomId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "The deleted room is not listed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"The deleted room is no longer in the list\", () => {",
+                  "    const ids = pm.response.json().rooms.map(room => room.roomid);",
+                  "    pm.expect(ids).not.to.include(Number(pm.environment.get(\"roomId\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Known defects",
+      "description": "Checks that expose open defects (see docs/defects.md). Left out of the normal run; run alone with --folder \"Known defects\".",
+      "item": [
+        {
+          "name": "Login with valid credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "pm.test(\"A token cookie is set\", () => {",
+                  "    const token = pm.cookies.get(\"token\");",
+                  "    pm.expect(token, \"token cookie\").to.be.a(\"string\").and.not.empty;",
+                  "    pm.environment.set(\"token\", token);",
+                  "});",
+                  "",
+                  "pm.test(\"Response time is under 3 seconds\", () => pm.expect(pm.response.responseTime).to.be.below(3000));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{adminUsername}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Create a room",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A unique name for every run, so runs never clash on the shared demo",
+                  "pm.environment.set(\"roomName\", \"PM\" + Math.floor(1000 + Math.random() * 9000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const room = pm.response.json();",
+                  "pm.environment.set(\"roomId\", room.roomid);",
+                  "",
+                  "pm.test(\"The room is returned with the data that was sent\", () => {",
+                  "    pm.expect(room.roomName).to.eql(pm.environment.get(\"roomName\"));",
+                  "    pm.expect(room.type).to.eql(pm.iterationData.get(\"roomType\") || pm.environment.get(\"roomType\"));",
+                  "    pm.expect(room.roomPrice).to.eql(Number(pm.iterationData.get(\"roomPrice\") || pm.environment.get(\"roomPrice\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomName\": \"{{roomName}}\",\n  \"type\": \"{{roomType}}\",\n  \"accessible\": true,\n  \"image\": \"/images/room2.jpg\",\n  \"description\": \"Room created by the Postman collection.\",\n  \"features\": [\"WiFi\", \"TV\"],\n  \"roomPrice\": {{roomPrice}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Delete the room",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 202\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                "{{roomId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "BUG-001 \u00b7 Reading a deleted room answers 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// BUG-001: the API answers 500 Internal Server Error instead of 404 Not Found",
+                  "pm.test(\"The deleted room is gone (404)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/{{roomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                "{{roomId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test(\"Response is not a server error\", () => pm.expect(pm.response.code).to.be.below(500));"
+        ]
+      }
+    }
+  ]
+}

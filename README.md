@@ -46,8 +46,8 @@ The project tests the platform from three angles:
 
 | Area | UI (Playwright) | API (Playwright) | Postman | Status |
 |---|:---:|:---:|:---:|---|
-| Authentication: admin login, invalid credentials, logout, token validation | ✅ | ✅ | ✅ | Planned |
-| Rooms: list, details, create, update and delete (admin) | ✅ | ✅ | ✅ | Planned |
+| Authentication: admin login, invalid credentials, logout, token validation | ✅ | ✅ | ✅ | ✅ Done |
+| Rooms: list, details, create, update and delete (admin) | ✅ | ✅ | ✅ | 🔄 API and Postman done, UI next |
 | Guest booking: check availability, book a room, required fields, invalid dates, confirmation | ✅ | ✅ | ✅ | Planned |
 | Booking management: bookings in the admin report, double booking of the same dates | ✅ | ✅ | ✅ | Planned |
 | Contact form: send a message, field validation, message in the admin inbox | ✅ | ✅ | ✅ | Planned |
@@ -62,7 +62,7 @@ The project tests the platform from three angles:
 | **High** | Room management, booking validation, contact form, access without login |
 | **Medium** | Branding, navigation, secondary validation messages |
 
-Detailed test cases will be documented in `docs/test-cases.md`, and defects found in `docs/defects.md`.
+Detailed test cases are in [`docs/test-cases.md`](docs/test-cases.md), and the defects found in [`docs/defects.md`](docs/defects.md).
 
 ---
 
@@ -130,23 +130,38 @@ travel-booking-automation-framework
 
 ```python
 @pytest.mark.smoke
-def test_guest_books_a_room(page, guest):
-    home = HomePage(page).open()
+def test_admin_logs_in_and_sees_the_rooms_page(page: Page):
+    AdminLoginPage(page).open().login_as(config.ADMIN_USERNAME, config.ADMIN_PASSWORD)
 
-    booking = home.book_room("Single", check_in=guest.check_in, check_out=guest.check_out)
-    booking.fill(guest).submit()
+    expect(page).to_have_url(re.compile(r"/admin/rooms$"))
+    expect(AdminPanel(page).logout_button).to_be_visible()
+```
 
-    expect(booking.confirmation).to_contain_text("Booking Confirmed")
+**API test with Playwright's `APIRequestContext`**
+
+```python
+@pytest.mark.smoke
+def test_admin_creates_a_room(admin_api: RestfulBookerApi, created_rooms):
+    room = a_room(type="Suite", roomPrice=275)
+
+    response = admin_api.create_room(room)
+
+    assert response.status == 201, response.text()
+    created = response.json()
+    created_rooms.append(created["roomid"])      # deleted again after the test
+    assert created["roomName"] == room["roomName"]
 ```
 
 **Postman test script**
 
 ```javascript
-pm.test("A room is created and returned with its id", () => {
-    pm.response.to.have.status(200);
-    const room = pm.response.json();
-    pm.expect(room.roomName).to.eql(pm.variables.get("roomName"));
-    pm.collectionVariables.set("roomId", room.roomid);
+pm.test("Status is 201", () => pm.response.to.have.status(201));
+
+const room = pm.response.json();
+pm.environment.set("roomId", room.roomid);     // used by the next requests
+
+pm.test("The room is returned with the data that was sent", () => {
+    pm.expect(room.roomName).to.eql(pm.environment.get("roomName"));
 });
 ```
 
@@ -164,7 +179,7 @@ playwright install chromium
 # All Playwright tests (UI, API and integration)
 pytest
 
-# Only one group: smoke, ui, api, integration
+# Only one group: smoke, ui, api
 pytest -m smoke
 
 # Watch the browser
@@ -174,7 +189,15 @@ pytest --headed --slowmo 300
 npm install -g newman newman-reporter-htmlextra
 newman run postman/collections/restful-booker-platform.postman_collection.json \
   -e postman/environments/public-demo.postman_environment.json \
-  -r cli,htmlextra
+  -d postman/data/room-types.csv \
+  --folder Auth --folder Rooms \
+  -r cli,htmlextra --reporter-htmlextra-export newman/report.html
+
+# Only the checks that expose open defects (they fail on purpose)
+pytest -m known_defect
+newman run postman/collections/restful-booker-platform.postman_collection.json \
+  -e postman/environments/public-demo.postman_environment.json \
+  --folder "Known defects"
 ```
 
 The Postman collection can also be imported in the Postman app (**Import → File**) together with its environment.
@@ -183,24 +206,24 @@ The Postman collection can also be imported in the Postman app (**Import → Fil
 
 ## ⚙️ CI/CD
 
-GitHub Actions will run two jobs on every push and pull request to `main`:
+GitHub Actions runs two jobs on every push to `main` and on every pull request:
 
-- **Playwright:** UI, API and integration tests with pytest, publishing the Allure report as an artifact.
-- **Postman:** the collection with Newman, publishing the HTML report as an artifact.
+- **Playwright:** UI and API tests with pytest on Chromium, publishing the Allure results (and Playwright traces when a test fails) as artifacts.
+- **Postman:** the collection with Newman, once per room type in `room-types.csv`, publishing the HTML report as an artifact.
 
 ---
 
 ## 🗺️ Roadmap
 
-- [ ] Framework core: pytest, Playwright, Page Objects, API client, fixtures and configuration
-- [ ] Postman collection and environment: authentication and rooms
+- [x] Framework core: pytest, Playwright, Page Objects, API client, fixtures and configuration
+- [x] Postman collection and environment: authentication and rooms
 - [ ] Guest booking flow (UI, API and Postman)
 - [ ] Contact form and admin messages
 - [ ] Admin panel: rooms and bookings
 - [ ] Branding
 - [ ] UI vs. API consistency tests
-- [ ] Data-driven Postman runs with CSV files
-- [ ] CI with GitHub Actions: Playwright and Newman jobs with reports
+- [x] Data-driven Postman runs with CSV files
+- [x] CI with GitHub Actions: Playwright and Newman jobs with reports
 - [ ] Test strategy, test plan, test cases and defect reports
 
 ---
@@ -209,6 +232,8 @@ GitHub Actions will run two jobs on every push and pull request to `main`:
 
 - The public demo is shared and resets its data regularly, so tests create the data they need instead of relying on what is already there.
 - The admin credentials (`admin` / `password`) are public demo data, documented by the platform itself.
+- The demo sometimes answers `502 Bad Gateway` for a few seconds while it restarts. The Python API client retries only those gateway errors (up to 3 times), so a restart does not fail the run but real errors still do.
+- Tests that expose an open defect are tagged `known_defect` (pytest) or kept in the **Known defects** folder (Postman). They are left out of the normal run, so CI stays green while the defect is still documented and reproducible.
 
 ---
 
