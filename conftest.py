@@ -4,6 +4,7 @@ from playwright.sync_api import Page, Playwright
 
 import config
 from api.client import RestfulBookerApi
+from data.branding import savable
 from data.rooms import a_room
 
 
@@ -82,3 +83,14 @@ def admin_page(page: Page, admin_api, base_url) -> Page:
     "token" cookie, so UI tests of the admin panel skip the login form."""
     page.context.add_cookies([{"name": "token", "value": admin_api.token, "url": base_url}])
     return page
+
+
+@pytest.fixture
+def original_branding(admin_api) -> dict:
+    """The hotel branding before the test. It is shared by every visitor of the demo, so it is
+    always put back after the test, even when the test fails. It is restored with an absolute
+    logo URL, because the API rejects the demo's own relative one (BUG-006)."""
+    original = admin_api.get_branding().json()
+    yield original
+    response = admin_api.update_branding(savable(original))
+    assert response.status == 202, f"could not restore the branding: {response.status} {response.text()}"

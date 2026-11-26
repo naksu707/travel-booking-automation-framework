@@ -24,7 +24,7 @@ jobs:
           playwright install --with-deps chromium
 
       - name: Run tests
-        run: pytest --browser chromium --tracing retain-on-failure
+        run: pytest --browser chromium --tracing retain-on-failure --screenshot only-on-failure
 
       - name: Upload Allure results
         if: always()
@@ -33,7 +33,7 @@ jobs:
           name: allure-results
           path: allure-results
 
-      - name: Upload Playwright traces
+      - name: Upload Playwright traces and screenshots
         if: failure()
         uses: actions/upload-artifact@v4
         with:
@@ -42,6 +42,9 @@ jobs:
 
   newman:
     name: Postman (Newman)
+    # Runs after the Playwright job, not at the same time: both touch the shared branding
+    needs: playwright
+    if: always()
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -58,9 +61,10 @@ jobs:
           newman run postman/collections/restful-booker-platform.postman_collection.json
           -e postman/environments/public-demo.postman_environment.json
           -d postman/data/room-types.csv
-          --folder Auth --folder Rooms --folder Booking --folder Messages
+          --folder Auth --folder Rooms --folder Booking --folder Messages --folder Branding
           -r cli,htmlextra
           --reporter-htmlextra-export newman/report.html
+          --reporter-htmlextra-title "Restful Booker Platform · Postman collection"
 
       - name: Upload Newman report
         if: always()
@@ -68,3 +72,45 @@ jobs:
         with:
           name: newman-report
           path: newman/report.html
+
+  report:
+    name: Publish reports to GitHub Pages
+    # Published even when tests fail, so the report shows what failed; only from main
+    if: always() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: [playwright, newman]
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Build the Allure report
+        run: |
+          npm install -g allure-commandline
+          allure generate artifacts/allure-results -o site/allure --clean
+
+      - name: Add the Newman report and the landing page
+        run: |
+          mkdir -p site/newman
+          cp artifacts/newman-report/report.html site/newman/index.html
+          sed "s|RUN_INFO|#${{ github.run_number }} · ${{ github.sha }} · $(date -u '+%Y-%m-%d %H:%M UTC')|" report/index.html > site/index.html
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: deploy
+        uses: actions/deploy-pages@v4

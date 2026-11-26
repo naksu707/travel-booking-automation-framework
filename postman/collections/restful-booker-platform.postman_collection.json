@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "58ee5944-568c-427c-b1d4-69654742a01d",
     "name": "Restful Booker Platform",
-    "description": "API checks for the Restful Booker Platform: admin authentication, the room lifecycle, guest bookings and contact messages. Run the folders in order: Rooms, Booking and Messages use the token saved by Auth. The \"Known defects\" folder exposes open defects and is left out of the normal run.",
+    "description": "API checks for the Restful Booker Platform: admin authentication, rooms, guest bookings, contact messages and branding. Run the folders in order: the others use the token saved by Auth. The \"Known defects\" folder exposes open defects and is left out of the normal run.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -1476,6 +1476,278 @@
       ]
     },
     {
+      "name": "Branding",
+      "description": "The hotel details shown on the website. The demo is shared, so this folder only sends the current branding back (with an absolute logo URL, see BUG-006) and checks requests that are rejected.",
+      "item": [
+        {
+          "name": "Read the branding (public)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "",
+                  "const branding = pm.response.json();",
+                  "pm.test(\"Every section of the branding is present\", () => {",
+                  "    pm.expect(branding).to.include.keys(\"name\", \"description\", \"logoUrl\", \"directions\", \"map\", \"contact\", \"address\");",
+                  "    pm.expect(branding.contact).to.include.keys(\"name\", \"phone\", \"email\");",
+                  "    pm.expect(branding.address).to.include.keys(\"line1\", \"line2\", \"postTown\", \"county\", \"postCode\");",
+                  "});",
+                  "",
+                  "// Saved so the next requests send the same branding back: the demo is shared, so this",
+                  "// collection never leaves a changed branding behind. The demo's own logo URL is relative and",
+                  "// the API rejects it (BUG-006), so the copy points to the same image with an absolute URL.",
+                  "if (branding.logoUrl && branding.logoUrl.startsWith(\"/\")) {",
+                  "    branding.logoUrl = pm.environment.get(\"baseUrl\") + branding.logoUrl;",
+                  "}",
+                  "pm.environment.set(\"brandingJson\", JSON.stringify(branding));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/branding/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "branding",
+                ""
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "A guest cannot change the branding",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/branding/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "branding",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{brandingJson}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Change the branding with an invalid name",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const branding = JSON.parse(pm.environment.get(\"brandingJson\"));",
+                  "branding.name = \"Hotel 123\";",
+                  "pm.environment.set(\"invalidBrandingJson\", JSON.stringify(branding));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"The error explains the name rule\", () => {",
+                  "    pm.expect(pm.response.json().fieldErrors).to.include(\"Name can only contain alpha characters and the & sign\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/branding/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "branding",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{invalidBrandingJson}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Change the branding with an invalid email",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const branding = JSON.parse(pm.environment.get(\"brandingJson\"));",
+                  "branding.contact.email = \"not-an-email\";",
+                  "pm.environment.set(\"invalidBrandingJson\", JSON.stringify(branding));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"The error explains the email rule\", () => {",
+                  "    pm.expect(pm.response.json().fieldErrors).to.include(\"Email should be a valid email format\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/branding/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "branding",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{invalidBrandingJson}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Admin saves the branding",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 202\", () => pm.response.to.have.status(202));",
+                  "pm.test(\"The saved branding is returned unchanged\", () => {",
+                  "    const sent = JSON.parse(pm.environment.get(\"brandingJson\"));",
+                  "    pm.expect(pm.response.json().name).to.eql(sent.name);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/branding/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "branding",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{brandingJson}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Known defects",
       "description": "Checks that expose open defects (see docs/defects.md). Left out of the normal run; run alone with --folder \"Known defects\".",
       "item": [
@@ -1909,6 +2181,148 @@
                 "message",
                 "{{defectMessageId}}"
               ]
+            }
+          }
+        },
+        {
+          "name": "Read the branding",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.environment.set(\"defectBrandingJson\", JSON.stringify(pm.response.json()));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/branding/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "branding",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "BUG-006 \u00b7 The current branding can be saved back unchanged",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// BUG-006: 400 \"Url should be a correct url format\", because the demo's own logo URL is relative",
+                  "pm.test(\"Saving the branding unchanged is accepted (202)\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/branding/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "branding",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{defectBrandingJson}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "BUG-007 \u00b7 Empty directions are explained with the right field",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const branding = JSON.parse(pm.environment.get(\"brandingJson\") || pm.environment.get(\"defectBrandingJson\"));",
+                  "if (branding.logoUrl.startsWith(\"/\")) { branding.logoUrl = pm.environment.get(\"baseUrl\") + branding.logoUrl; }",
+                  "branding.directions = \"\";",
+                  "pm.environment.set(\"defectBrandingJson\", JSON.stringify(branding));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "// BUG-007: the message says \"Name should not be blank\"",
+                  "pm.test(\"The error names the directions\", () => {",
+                  "    const errors = pm.response.json().fieldErrors || [];",
+                  "    pm.expect(errors.some(e => e.toLowerCase().includes(\"direction\")), JSON.stringify(errors)).to.be.true;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/branding/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "branding",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{{defectBrandingJson}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             }
           }
         }

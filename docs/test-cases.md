@@ -35,6 +35,9 @@ Admin credentials: `admin` / `password` (public demo data).
 | TC-ROOM-08 | An unknown room type is rejected | Create a room with type `Penthouse` | 400, with "Type can only contain the room options Single, Double, Twin, Family or Suite" | API, PM | Medium |
 | TC-ROOM-09 | An empty room name is rejected | Create a room with an empty name | 400, with "Room name must be set" | API | Medium |
 | TC-ROOM-10 | Prices outside 1–999 are rejected | Create rooms with price 0 and 1000 | 400 for both | API | Medium |
+| TC-ROOM-13 | Admin creates a room from the rooms page | Log in, fill name, type Suite, accessible, price 275 and WiFi, click **Create** | The room is listed with its type and price, and the API has it with the same data | UI, API | High |
+| TC-ROOM-14 | A room without a name is not created | Click **Create** with an empty name | "Room name must be set" is shown and no room is added | UI | Medium |
+| TC-ROOM-15 | Admin deletes a room from the rooms page | Click the delete icon of a room | The row disappears and the API no longer lists the room | UI, API | High |
 | TC-ROOM-11 | Every room type can be created | Postman run with `room-types.csv` (Single, Double, Twin, Family, Suite) | Each iteration creates, reads, updates and deletes the room | PM | Medium |
 
 ## Guest booking
@@ -82,10 +85,26 @@ Admin credentials: `admin` / `password` (public demo data).
 | TC-INT-01 | A booking made in the website is saved | Book in the website, then list the room's bookings through the API | Exactly one booking, with the guest's name and the same dates | UI + API | Critical |
 | TC-INT-02 | Dates booked in the website are taken | Book in the website, then book the same dates through the API | 409 Conflict | UI + API | Critical |
 | TC-INT-03 | A message sent in the website reaches the admin | Send the contact form, then find the message through the API | The message is listed and has the same name, email, phone and text | UI + API | Critical |
+| TC-INT-05 | A room created by the admin is offered on the website | Create a Family room for £345 through the API, open the home page | A room card with its description, type and price. **Fails: BUG-008** (only the three original rooms are shown) | UI + API | High |
+| TC-INT-06 | Branding changed by the admin reaches the website | Update the branding through the API, open the home page | The new name, address, phone, email and directions, and the name in the footer | UI + API | Medium |
 | TC-INT-04 | A booking notifies the admin | Book in the website, then look for the notification through the API | A "You have a new booking!" message from the guest, with the booking dates, email and phone | UI + API | High |
+
+## Branding
+
+| ID | Title | Steps | Expected result | Layers | Priority |
+|---|---|---|---|---|---|
+| TC-BRAND-01 | The branding is public and complete | `GET /api/branding/` | 200 with name, description, logo, directions, map, contact and address | API, PM | Medium |
+| TC-BRAND-02 | The website shows the hotel branding | Open the home page | "Welcome to {name}", the address, phone and email in **Our Location**, the name in the footer | UI | Medium |
+| TC-BRAND-03 | Admin updates the branding | `PUT /api/branding/` with new name, directions, email and address | 202, and reading the branding shows the new values | API, PM | High |
+| TC-BRAND-04 | Admin renames the hotel from the branding page | Change the name (and the logo to a full URL) in `/admin/branding` and click **Submit** | "Branding updated!" and the API has the new name | UI | Medium |
+| TC-BRAND-08 | The branding can be saved without changing the logo | Save the current branding unchanged (API), or change only the name in `/admin/branding` (UI) | 202 / "Branding updated!". **Fails: BUG-006** (400, "Url should be a correct url format") | UI, API, PM | High |
+| TC-BRAND-05 | A guest cannot change the branding | `PUT /api/branding/` with no token, or an invalid one | 403, and the branding is unchanged | API, PM | Critical |
+| TC-BRAND-06 | Invalid branding is rejected with an explanation | Name with numbers or empty, invalid logo URL, description with numbers, contact name with numbers, invalid email, empty address line 1 or post code | 400 with the rule for that field; the branding is unchanged | UI, API, PM | Medium |
+| TC-BRAND-07 | Empty directions are explained with the right field | Update the branding with empty directions | 400 with a message about the directions. **Fails: BUG-007** ("Name should not be blank") | API, PM | Low |
 
 ## Test data
 
 - Booking tests create a new room for each test, so their dates are always free, and delete the bookings and the room at the end.
+- The branding is shared by everyone who uses the demo: tests that change it save the original and always restore it, with the logo as a full URL because the demo's own relative one is rejected (BUG-006).
 - Every test creates its own rooms with a unique name (`QA1234` from pytest, `PM1234` from Postman) and deletes them at the end, so runs never depend on the demo's data or leave rooms behind.
 - The demo is shared and resets regularly; no test relies on rooms that already exist.

@@ -5,6 +5,7 @@ All services sit behind the website under /api/<service>:
   auth   POST /api/auth/login | /validate | /logout
   room   GET/POST /api/room/   GET/PUT/DELETE /api/room/{id}
   message POST /api/message/ (public)   GET /api/message/ | /count | /{id}   PUT /api/message/{id}/read   DELETE /api/message/{id}
+  branding GET /api/branding/ (public)   PUT /api/branding/ (admin)
   booking POST /api/booking/ (public)   GET /api/booking/?roomid=   GET/PUT/DELETE /api/booking/{id} (admin)
 
 Logging in does not return the token in the body: the auth service sets a cookie named "token",
@@ -27,12 +28,14 @@ class RestfulBookerApi:
     def __init__(self, request: APIRequestContext):
         self.request = request
         self.token: str | None = None
+        self._credentials: tuple[str, str] | None = None
 
     # ---------- auth ----------
 
     def login(self, username: str = config.ADMIN_USERNAME, password: str = config.ADMIN_PASSWORD) -> APIResponse:
-        response = self._send("POST", "/api/auth/login", data={"username": username, "password": password})
+        response = self._send_once("POST", "/api/auth/login", data={"username": username, "password": password})
         self.token = self.token_from(response)
+        self._credentials = (username, password) if self.token else None
         return response
 
     def validate(self, token: str) -> APIResponse:
@@ -102,10 +105,31 @@ class RestfulBookerApi:
         messages = self.list_messages().json()["messages"]
         return next((m for m in messages if m["subject"] == subject), None)
 
+    # ---------- branding ----------
+
+    def get_branding(self) -> APIResponse:
+        return self._send("GET", "/api/branding/")
+
+    def update_branding(self, branding: dict, token: str | None = "current") -> APIResponse:
+        return self._send("PUT", "/api/branding/", data=branding, headers=self._auth_cookie(token))
+
     # ---------- helpers ----------
 
     def _send(self, method: str, path: str, **options) -> APIResponse:
-        """Sends the request, retrying only gateway errors of the shared demo."""
+        """Sends the request, retrying only gateway errors of the shared demo.
+
+        The demo also resets its database every few minutes, which ends every login. If a
+        request made with this client's own admin token answers 403, the client logs in again
+        once and repeats it; a request with no token or another token is never repeated."""
+        response = self._send_once(method, path, **options)
+        sent_cookie = options.get("headers", {}).get("Cookie", "")
+        if response.status == 403 and self._credentials and self.token and sent_cookie == f"token={self.token}":
+            self.login(*self._credentials)
+            options["headers"] = {**options["headers"], "Cookie": f"token={self.token}"}
+            response = self._send_once(method, path, **options)
+        return response
+
+    def _send_once(self, method: str, path: str, **options) -> APIResponse:
         for attempt in range(1, RETRIES + 1):
             response = self.request.fetch(path, method=method, **options)
             if response.status not in GATEWAY_ERRORS or attempt == RETRIES:

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Test reports · Travel Booking Automation Framework</title>
+  <style>
+    :root { color-scheme: light dark; --accent: #7c3aed; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; max-width: 760px; margin: 0 auto; padding: 48px 24px; line-height: 1.6; }
+    h1 { margin-bottom: 4px; }
+    .subtitle { opacity: .75; margin-top: 0; }
+    .cards { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); margin: 32px 0; }
+    a.card { display: block; padding: 20px; border: 1px solid #8884; border-radius: 12px; text-decoration: none; color: inherit; }
+    a.card:hover { border-color: var(--accent); }
+    a.card strong { display: block; font-size: 1.1rem; margin-bottom: 4px; color: var(--accent); }
+    footer { margin-top: 48px; opacity: .8; font-size: .9rem; text-align: center; }
+    footer a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <h1>🏨 Travel Booking Automation Framework</h1>
+  <p class="subtitle">Latest test results for <a href="https://automationintesting.online">Restful Booker Platform</a>, published by GitHub Actions on every push to <code>main</code>.</p>
+  <p class="subtitle">Run: <code>RUN_INFO</code></p>
+
+  <div class="cards">
+    <a class="card" href="allure/index.html">
+      <strong>Allure report</strong>
+      UI, API and integration tests with Playwright for Python and pytest.
+    </a>
+    <a class="card" href="newman/index.html">
+      <strong>Newman report</strong>
+      The Postman collection, run once per room type.
+    </a>
+  </div>
+
+  <p>Source code, test cases and defect reports: <a href="https://github.com/naksu707/travel-booking-automation-framework">github.com/naksu707/travel-booking-automation-framework</a></p>
+
+  <footer>Made by 💜 <a href="https://github.com/naksu707">Maria Jose Ospina</a> 💜</footer>
+</body>
+</html>

@@ -11,6 +11,9 @@ Each one has an automated check that reproduces it, left out of the normal run:
 | BUG-003 | Booking dates that are already taken crashes the reservation page | High | Open | UI (Playwright) |
 | BUG-004 | Guest messages, with email and phone, can be read without logging in | Critical | Open | API (Playwright) and Postman |
 | BUG-005 | Reading a deleted message answers 500 instead of 404 | Medium | Open | API (Playwright) and Postman |
+| BUG-006 | The branding cannot be saved: the demo's own logo URL is rejected | High | Open | API and UI (Playwright), Postman |
+| BUG-007 | Empty directions are reported as "Name should not be blank" | Low | Open | API (Playwright) and Postman |
+| BUG-008 | Rooms created by the admin are never offered to guests on the website | High | Open | Integration (UI + API) |
 
 ---
 
@@ -148,3 +151,82 @@ The same happens when reading an id that never existed, for example `GET /api/ro
 **Impact:** same pattern as BUG-001 in the room API: a missing record is reported as a server failure. Since the two services behave the same way, the cause is probably shared (the database lookup does not handle "no rows found"), so fixing it in one place may fix both.
 
 **Evidence:** pytest run of 2026-11-26: `assert 500 == 404` for `GET /api/message/30` after deleting it.
+
+---
+
+## BUG-006 · The branding cannot be saved: the demo's own logo URL is rejected
+
+| Field | Value |
+|---|---|
+| Severity | High |
+| Priority | High |
+| Component | Branding API `PUT /api/branding/` and admin page `/admin/branding` |
+| Environment | https://automationintesting.online (public demo), Chromium |
+| Test cases | TC-BRAND-04, TC-BRAND-08 |
+| Automated checks | `test_the_current_branding_can_be_saved_back_unchanged`, `test_admin_renames_the_hotel_without_touching_the_logo`, Postman **Known defects / BUG-006** |
+
+**Steps to reproduce**
+
+1. Read the branding: `GET /api/branding/`. The logo URL is `/images/rbp-logo.jpg`.
+2. As admin, send the same branding back without changing anything: `PUT /api/branding/`.
+3. In the website: log in, open **Branding**, change only the hotel name and click **Submit**.
+
+**Expected result:** `202 Accepted`, and "Branding updated!" in the admin page.
+
+**Actual result:** `400 Bad Request` with "Url should be a correct url format". The admin page shows the same message under the form, and nothing is saved.
+
+**Impact:** the admin cannot change anything in the branding (name, contact details, address, directions) unless they first notice that the logo field must be rewritten as a full URL. The value the system created itself does not pass its own validation. Found by the test that saves the branding back after each branding test: it could never restore it.
+
+**Evidence:** pytest run of 2026-11-26: every branding test failed to restore the original branding with `400 ... Url should be a correct url format`, and the admin page snapshot shows that message under the form. Workaround used by the tests: the same image with an absolute URL (`https://automationintesting.online/images/rbp-logo.jpg`), which is accepted.
+
+---
+
+## BUG-007 · Empty directions are reported as "Name should not be blank"
+
+| Field | Value |
+|---|---|
+| Severity | Low |
+| Priority | Low |
+| Component | Branding API `PUT /api/branding/` |
+| Environment | https://automationintesting.online (public demo) |
+| Test cases | TC-BRAND-07 |
+| Automated checks | `test_empty_directions_are_explained_with_the_right_field`, Postman **Known defects / BUG-007** |
+
+**Steps to reproduce**
+
+1. As admin, send the current branding (with an absolute logo URL) with `"directions": ""` to `PUT /api/branding/`.
+
+**Expected result:** `400 Bad Request` with a message about the directions, for example "Directions should not be blank".
+
+**Actual result:** `400 Bad Request` with **"Name should not be blank"**, although the name is filled in.
+
+**Impact:** the admin is told to fix a field that is already correct, and cannot tell from the message that the directions are missing. The message of the name field was reused for the directions field.
+
+**Evidence:** pytest run of 2026-11-26: `the error does not mention the directions: ['Name should not be blank', ...]`.
+
+---
+
+## BUG-008 · Rooms created by the admin are never offered to guests on the website
+
+| Field | Value |
+|---|---|
+| Severity | High |
+| Priority | High |
+| Component | Website home page, **Our Rooms** section |
+| Environment | https://automationintesting.online (public demo), Chromium |
+| Test cases | TC-INT-05 |
+| Automated check | `test_a_room_created_by_the_admin_is_offered_on_the_website` |
+
+**Steps to reproduce**
+
+1. Log in as admin and create a room, in the admin panel or with `POST /api/room/` (for example a Family room for £345).
+2. Check that it exists: `GET /api/room/` lists it, and it shows in `/admin/rooms`.
+3. Open the home page and look at **Our Rooms**. Reload several times over a minute and a half.
+
+**Expected result:** the new room is shown with its description, type and price, and a **Book now** button.
+
+**Actual result:** only the three original rooms (Single, Double, Suite) are shown, even after reloading for more than 90 seconds. The new room can only be booked by someone who already knows its address (`/reservation/{room id}`).
+
+**Impact:** rooms the hotel adds cannot be found or booked by guests from the website, which is lost revenue for every new room. The admin has no sign that anything is wrong: the room appears in the admin panel and in the API.
+
+**Evidence:** pytest run of 2026-11-26: room 87 was created (the API lists it), and the home page snapshot after 90 seconds of reloading shows only rooms 1, 2 and 3. Seen in two separate runs.
