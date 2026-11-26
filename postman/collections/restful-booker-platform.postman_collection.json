@@ -1021,14 +1021,18 @@
           }
         },
         {
-          "name": "Delete the room of the bookings",
+          "name": "Clean up: delete the room of the bookings",
           "event": [
             {
               "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"Status is 202\", () => pm.response.to.have.status(202));"
+                  "// Clean-up, not a check of the room API (that is in the Rooms folder). The shared demo resets",
+                  "// its data every few minutes, so the room may already be gone: both answers leave the demo clean.",
+                  "pm.test(\"The room is removed (202), or was already gone (404)\", () => {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([202, 404]);",
+                  "});"
                 ]
               }
             }
