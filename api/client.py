@@ -4,6 +4,7 @@ Small client for the Restful Booker Platform APIs, built on Playwright's APIRequ
 All services sit behind the website under /api/<service>:
   auth   POST /api/auth/login | /validate | /logout
   room   GET/POST /api/room/   GET/PUT/DELETE /api/room/{id}
+  message POST /api/message/ (public)   GET /api/message/ | /count | /{id}   PUT /api/message/{id}/read   DELETE /api/message/{id}
   booking POST /api/booking/ (public)   GET /api/booking/?roomid=   GET/PUT/DELETE /api/booking/{id} (admin)
 
 Logging in does not return the token in the body: the auth service sets a cookie named "token",
@@ -74,6 +75,32 @@ class RestfulBookerApi:
 
     def delete_booking(self, booking_id: int, token: str | None = "current") -> APIResponse:
         return self._send("DELETE", f"/api/booking/{booking_id}", headers=self._auth_cookie(token))
+
+    # ---------- messages ----------
+
+    def send_message(self, message: dict) -> APIResponse:
+        """Guests use the contact form without logging in, so no token is sent."""
+        return self._send("POST", "/api/message/", data=message)
+
+    def list_messages(self, token: str | None = "current") -> APIResponse:
+        return self._send("GET", "/api/message/", headers=self._auth_cookie(token))
+
+    def get_message(self, message_id: int, token: str | None = "current") -> APIResponse:
+        return self._send("GET", f"/api/message/{message_id}", headers=self._auth_cookie(token))
+
+    def unread_count(self, token: str | None = "current") -> APIResponse:
+        return self._send("GET", "/api/message/count", headers=self._auth_cookie(token))
+
+    def mark_message_read(self, message_id: int, token: str | None = "current") -> APIResponse:
+        return self._send("PUT", f"/api/message/{message_id}/read", headers=self._auth_cookie(token))
+
+    def delete_message(self, message_id: int, token: str | None = "current") -> APIResponse:
+        return self._send("DELETE", f"/api/message/{message_id}", headers=self._auth_cookie(token))
+
+    def find_message(self, subject: str) -> dict | None:
+        """The message summary (id, name, subject, read) with this subject, or None."""
+        messages = self.list_messages().json()["messages"]
+        return next((m for m in messages if m["subject"] == subject), None)
 
     # ---------- helpers ----------
 

@@ -58,12 +58,31 @@ Admin credentials: `admin` / `password` (public demo data).
 | TC-BOOK-15 | A guest cannot delete a booking | Delete a booking without a token | 403 Forbidden | API | Critical |
 | TC-BOOK-16 | Cancel returns to the calendar | Click **Reserve Now**, then **Cancel** | The calendar and **Reserve Now** are shown again, without the form | UI | Low |
 
+## Contact form and admin inbox
+
+| ID | Title | Steps | Expected result | Layers | Priority |
+|---|---|---|---|---|---|
+| TC-MSG-01 | Guest sends a message | Fill name, email, phone, subject and message on the home page and click **Submit** | "Thanks for getting in touch {name}!" with the subject (UI); 201 with the message (API) | UI, API, PM | Critical |
+| TC-MSG-02 | Empty form shows every missing field | Click **Submit** with the form empty | "may not be blank" for name, email, phone, subject and message | UI | High |
+| TC-MSG-03 | Field lengths are checked | Phone of 10 or 22 digits, subject of 4 or 101 letters, message of 17 or 2001 letters | 400 and the rule for that field ("Phone must be between 11 and 21 characters.", etc.) | UI, API, PM | Medium |
+| TC-MSG-04 | Invalid or empty email is rejected | Send with email empty and `not-an-email` | 400 with a message | API | Medium |
+| TC-MSG-05 | Phone lengths at the limits are accepted | Send with phones of 11 and 21 digits | 201 Created | API | Low |
+| TC-MSG-06 | New message is unread in the inbox | Send a message, open `/admin/message` | The row shows the name and subject, marked unread | UI, API, PM | High |
+| TC-MSG-07 | Admin opens a message | Click the message | The pop-up shows name, phone, email, subject and message | UI, API | High |
+| TC-MSG-08 | An opened message is marked as read | Open and close the message, reload the inbox | The row is marked read (UI); `read` is true (API) | UI, API, PM | Medium |
+| TC-MSG-09 | Admin deletes a message | Click the delete icon of the message | The row disappears and the API no longer lists it | UI, API, PM | High |
+| TC-MSG-10 | A guest cannot change messages | Mark as read and delete without a token, or with an invalid one | 403 Forbidden | API, PM | Critical |
+| TC-MSG-11 | Messages are private to the admin | List messages and read one without a token, or with an invalid one | 403 Forbidden. **Fails: BUG-004** (200 OK, email and phone exposed) | API, PM | Critical |
+| TC-MSG-12 | Reading a deleted message answers 404 | Delete a message, then read it | 404 Not Found. **Fails: BUG-005** (500 Internal Server Error) | API, PM | Medium |
+
 ## UI vs. API consistency
 
 | ID | Title | Steps | Expected result | Layers | Priority |
 |---|---|---|---|---|---|
 | TC-INT-01 | A booking made in the website is saved | Book in the website, then list the room's bookings through the API | Exactly one booking, with the guest's name and the same dates | UI + API | Critical |
 | TC-INT-02 | Dates booked in the website are taken | Book in the website, then book the same dates through the API | 409 Conflict | UI + API | Critical |
+| TC-INT-03 | A message sent in the website reaches the admin | Send the contact form, then find the message through the API | The message is listed and has the same name, email, phone and text | UI + API | Critical |
+| TC-INT-04 | A booking notifies the admin | Book in the website, then look for the notification through the API | A "You have a new booking!" message from the guest, with the booking dates, email and phone | UI + API | High |
 
 ## Test data
 

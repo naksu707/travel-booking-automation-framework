@@ -39,6 +39,7 @@ The project tests the platform from three angles:
 - **UI and API agree:** a booking made in the website must exist in the API and in the admin panel.
 - **Maintainable:** Page Object Model for the UI, a small API client for Python, and Postman environments instead of hard-coded URLs.
 - **Independent tests:** each test creates its own data (rooms, bookings, messages) and cleans up what it creates.
+- **Fast admin UI tests:** tests of the admin panel log in through the API and pass the token to the browser as a cookie, so only the login tests go through the login form.
 
 ---
 
@@ -50,9 +51,9 @@ The project tests the platform from three angles:
 | Rooms: list, details, create, update and delete (admin) | ✅ | ✅ | ✅ | 🔄 API and Postman done, UI next |
 | Guest booking: book a room, price summary, required fields, invalid dates, confirmation | ✅ | ✅ | ✅ | ✅ Done |
 | Booking management: admin reads, lists and deletes bookings; double and overlapping bookings | | ✅ | ✅ | ✅ API and Postman done |
-| Contact form: send a message, field validation, message in the admin inbox | ✅ | ✅ | ✅ | Planned |
+| Contact form and admin inbox: send, validate, list, open, mark as read, delete | ✅ | ✅ | ✅ | ✅ Done |
 | Branding: hotel name, contact details and map shown on the website | ✅ | ✅ | ✅ | Planned |
-| UI vs. API consistency: what the website shows matches the API | ✅ | ✅ | | 🔄 Booking done |
+| UI vs. API consistency: what the website shows matches the API | ✅ | ✅ | | 🔄 Booking and messages done |
 
 ### Risk-based priorities
 
@@ -64,7 +65,7 @@ The project tests the platform from three angles:
 
 Detailed test cases are in [`docs/test-cases.md`](docs/test-cases.md), and the defects found in [`docs/defects.md`](docs/defects.md).
 
-**Defects found so far:** 3, all reproduced by automated checks: a 500 error when reading a deleted room (BUG-001), bookings accepted for past dates (BUG-002) and a crash of the reservation page when the dates are already taken (BUG-003).
+**Defects found so far:** 5, all reproduced by automated checks. The most serious: guest messages, with email and phone, can be read without logging in (BUG-004, critical). Also: bookings accepted for past dates (BUG-002), a crash of the reservation page when the dates are already taken (BUG-003), and 500 errors instead of 404 when reading a deleted room or message (BUG-001, BUG-005).
 
 ---
 
@@ -192,7 +193,7 @@ npm install -g newman newman-reporter-htmlextra
 newman run postman/collections/restful-booker-platform.postman_collection.json \
   -e postman/environments/public-demo.postman_environment.json \
   -d postman/data/room-types.csv \
-  --folder Auth --folder Rooms --folder Booking \
+  --folder Auth --folder Rooms --folder Booking --folder Messages \
   -r cli,htmlextra --reporter-htmlextra-export newman/report.html
 
 # Only the checks that expose open defects (they fail on purpose)
@@ -220,7 +221,7 @@ GitHub Actions runs two jobs on every push to `main` and on every pull request:
 - [x] Framework core: pytest, Playwright, Page Objects, API client, fixtures and configuration
 - [x] Postman collection and environment: authentication and rooms
 - [x] Guest booking flow (UI, API and Postman)
-- [ ] Contact form and admin messages
+- [x] Contact form and admin messages
 - [ ] Admin panel: rooms and bookings
 - [ ] Branding
 - [ ] UI vs. API consistency tests

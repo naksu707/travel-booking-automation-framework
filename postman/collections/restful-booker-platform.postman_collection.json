@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "58ee5944-568c-427c-b1d4-69654742a01d",
     "name": "Restful Booker Platform",
-    "description": "API checks for the Restful Booker Platform: admin authentication, the room lifecycle and guest bookings. Run the folders in order: Rooms and Booking use the token saved by Auth. The \"Known defects\" folder exposes open defects and is left out of the normal run.",
+    "description": "API checks for the Restful Booker Platform: admin authentication, the room lifecycle, guest bookings and contact messages. Run the folders in order: Rooms, Booking and Messages use the token saved by Auth. The \"Known defects\" folder exposes open defects and is left out of the normal run.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -1057,6 +1057,425 @@
       ]
     },
     {
+      "name": "Messages",
+      "description": "A guest uses the contact form and the admin manages the inbox: send, list, mark as read, validation and delete. Uses the token saved by Auth.",
+      "item": [
+        {
+          "name": "Send a message as a guest",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A unique subject, so this run can find its own message in the shared inbox",
+                  "pm.environment.set(\"messageSubject\", \"PM enquiry \" + Math.random().toString(36).slice(2, 8).toUpperCase());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const created = pm.response.json();",
+                  "pm.environment.set(\"messageId\", created.messageid);",
+                  "",
+                  "pm.test(\"The message is returned with an id and the data that was sent\", () => {",
+                  "    pm.expect(created.messageid).to.be.above(0);",
+                  "    pm.expect(created.subject).to.eql(pm.environment.get(\"messageSubject\"));",
+                  "    pm.expect(created.name).to.eql(\"Maria Ospina\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Ospina\",\n  \"email\": \"maria.ospina@example.com\",\n  \"phone\": \"01234567890\",\n  \"subject\": \"{{messageSubject}}\",\n  \"description\": \"Hello, I would like to know if the rooms have a sea view. Thank you!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "The message is listed as unread",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"The new message is in the list, unread\", () => {",
+                  "    const listed = pm.response.json().messages.find(m => m.id === Number(pm.environment.get(\"messageId\")));",
+                  "    pm.expect(listed, \"message in the list\").to.exist;",
+                  "    pm.expect(listed.subject).to.eql(pm.environment.get(\"messageSubject\"));",
+                  "    pm.expect(listed.read).to.eql(false);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "A guest cannot mark the message as read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/{{messageId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "{{messageId}}",
+                "read"
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Admin marks the message as read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 202\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/{{messageId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "{{messageId}}",
+                "read"
+              ]
+            }
+          }
+        },
+        {
+          "name": "The message is now read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"The message is marked as read\", () => {",
+                  "    const listed = pm.response.json().messages.find(m => m.id === Number(pm.environment.get(\"messageId\")));",
+                  "    pm.expect(listed.read).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                ""
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send a message with a short phone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"The error explains the phone length\", () => {",
+                  "    pm.expect(pm.response.json().fieldErrors).to.include(\"Phone must be between 11 and 21 characters.\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Ospina\",\n  \"email\": \"maria.ospina@example.com\",\n  \"phone\": \"0123456789\",\n  \"subject\": \"{{messageSubject}}\",\n  \"description\": \"Hello, I would like to know if the rooms have a sea view. Thank you!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Send a message with a short subject and text",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Both errors are explained\", () => {",
+                  "    const errors = pm.response.json().fieldErrors;",
+                  "    pm.expect(errors).to.include(\"Subject must be between 5 and 100 characters.\");",
+                  "    pm.expect(errors).to.include(\"Message must be between 20 and 2000 characters.\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Ospina\",\n  \"email\": \"maria.ospina@example.com\",\n  \"phone\": \"01234567890\",\n  \"subject\": \"Room\",\n  \"description\": \"Is there parking?\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "A guest cannot delete the message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/{{messageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "{{messageId}}"
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Admin deletes the message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 202\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/{{messageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "{{messageId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "The deleted message is not listed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"The message is no longer in the list\", () => {",
+                  "    const ids = pm.response.json().messages.map(m => m.id);",
+                  "    pm.expect(ids).not.to.include(Number(pm.environment.get(\"messageId\")));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                ""
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Known defects",
       "description": "Checks that expose open defects (see docs/defects.md). Left out of the normal run; run alone with --folder \"Known defects\".",
       "item": [
@@ -1307,6 +1726,188 @@
                 "api",
                 "room",
                 "{{roomId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Send a message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.environment.set(\"defectMessageId\", pm.response.json().messageid);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Maria Ospina\",\n  \"email\": \"maria.ospina@example.com\",\n  \"phone\": \"01234567890\",\n  \"subject\": \"Known defect check\",\n  \"description\": \"Message sent to check who can read the guest messages.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "BUG-004 \u00b7 A guest cannot list the messages",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// BUG-004: the list is public (200 OK)",
+                  "pm.test(\"The list of messages needs the admin token (403)\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                ""
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "BUG-004 \u00b7 A guest cannot read a message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// BUG-004: the message, with the guest's email and phone, is public (200 OK)",
+                  "pm.test(\"A message needs the admin token (403)\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/{{defectMessageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "{{defectMessageId}}"
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Admin deletes the message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 202\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/{{defectMessageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "{{defectMessageId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "BUG-005 \u00b7 Reading a deleted message answers 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// BUG-005: the API answers 500 Internal Server Error",
+                  "pm.test(\"The deleted message is gone (404)\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/message/{{defectMessageId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "message",
+                "{{defectMessageId}}"
               ]
             }
           }

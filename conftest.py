@@ -1,6 +1,6 @@
 """Shared fixtures for UI and API tests."""
 import pytest
-from playwright.sync_api import Playwright
+from playwright.sync_api import Page, Playwright
 
 import config
 from api.client import RestfulBookerApi
@@ -65,3 +65,20 @@ def created_bookings(admin_api):
     yield booking_ids
     for booking_id in booking_ids:
         admin_api.delete_booking(booking_id)
+
+
+@pytest.fixture
+def created_messages(admin_api):
+    """Collects the ids of the messages a test creates and deletes them afterwards."""
+    message_ids: list[int] = []
+    yield message_ids
+    for message_id in message_ids:
+        admin_api.delete_message(message_id)
+
+
+@pytest.fixture
+def admin_page(page: Page, admin_api, base_url) -> Page:
+    """A browser page already logged in as admin: the token from the API login is set as the
+    "token" cookie, so UI tests of the admin panel skip the login form."""
+    page.context.add_cookies([{"name": "token", "value": admin_api.token, "url": base_url}])
+    return page

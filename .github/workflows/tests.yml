@@ -58,7 +58,7 @@ jobs:
           newman run postman/collections/restful-booker-platform.postman_collection.json
           -e postman/environments/public-demo.postman_environment.json
           -d postman/data/room-types.csv
-          --folder Auth --folder Rooms --folder Booking
+          --folder Auth --folder Rooms --folder Booking --folder Messages
           -r cli,htmlextra
           --reporter-htmlextra-export newman/report.html
 

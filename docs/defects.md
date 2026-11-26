@@ -9,6 +9,8 @@ Each one has an automated check that reproduces it, left out of the normal run:
 | BUG-001 | Reading a deleted or unknown room answers 500 instead of 404 | Medium | Open | API (Playwright) and Postman |
 | BUG-002 | A booking for dates in the past is accepted | High | Open | API (Playwright) and Postman |
 | BUG-003 | Booking dates that are already taken crashes the reservation page | High | Open | UI (Playwright) |
+| BUG-004 | Guest messages, with email and phone, can be read without logging in | Critical | Open | API (Playwright) and Postman |
+| BUG-005 | Reading a deleted message answers 500 instead of 404 | Medium | Open | API (Playwright) and Postman |
 
 ---
 
@@ -92,3 +94,57 @@ The same happens when reading an id that never existed, for example `GET /api/ro
 **Impact:** this is the normal situation when two guests want the same dates, and the guest sees a broken site instead of being asked to pick other dates. The API itself behaves correctly (`409 Conflict`, see TC-BOOK-06); the website does not handle that answer, which comes without the list of errors the form expects.
 
 **Evidence:** pytest run of 2026-11-26: the page shows the heading "This page couldn't load" instead of the error message. Screenshot: [`docs/evidence/BUG-003-taken-dates-page-crash.png`](evidence/BUG-003-taken-dates-page-crash.png).
+
+---
+
+## BUG-004 · Guest messages, with email and phone, can be read without logging in
+
+| Field | Value |
+|---|---|
+| Severity | Critical |
+| Priority | High |
+| Component | Message API, `GET /api/message/` and `GET /api/message/{id}` |
+| Environment | https://automationintesting.online (public demo) |
+| Test cases | TC-MSG-11 |
+| Automated checks | `test_the_list_of_messages_is_private_to_the_admin`, `test_a_message_with_contact_details_is_private_to_the_admin`, Postman **Known defects / BUG-004** |
+
+**Steps to reproduce**
+
+1. As a guest, send a message with the contact form (or `POST /api/message/`).
+2. Without logging in (no token, or an invalid one), send `GET /api/message/`.
+3. Take any `id` from the list and send `GET /api/message/{id}`, still without logging in.
+
+**Expected result:** `403 Forbidden` for both. Only the admin may read the inbox, as already happens for marking a message as read or deleting it (both answer 403 without a token).
+
+**Actual result:** `200 OK`. The list shows every guest's name and subject, and each message shows the guest's **email, phone number and full text**.
+
+**Impact:** a privacy and data-protection issue. Anyone who knows the API can collect the contact details of every guest who wrote to the hotel, and guests who book also get an automatic message with their email, phone and booking dates. The rest of the API protects this kind of data: reading a booking without a token answers 403 (TC-BOOK-12).
+
+**Evidence:** pytest run of 2026-11-26: `AssertionError: the list of messages is public, assert 200 == 403`, with no token and with an invalid token.
+
+---
+
+## BUG-005 · Reading a deleted message answers 500 instead of 404
+
+| Field | Value |
+|---|---|
+| Severity | Medium |
+| Priority | Low |
+| Component | Message API, `GET /api/message/{id}` |
+| Environment | https://automationintesting.online (public demo) |
+| Test cases | TC-MSG-12 |
+| Automated checks | `test_reading_a_deleted_message_answers_404`, Postman **Known defects / BUG-005** |
+
+**Steps to reproduce**
+
+1. Send a message as a guest and note its `messageid`.
+2. Log in as admin and delete it: `DELETE /api/message/{id}` answers `202 Accepted`.
+3. Read it: `GET /api/message/{id}`.
+
+**Expected result:** `404 Not Found`.
+
+**Actual result:** `500 Internal Server Error`.
+
+**Impact:** same pattern as BUG-001 in the room API: a missing record is reported as a server failure. Since the two services behave the same way, the cause is probably shared (the database lookup does not handle "no rows found"), so fixing it in one place may fix both.
+
+**Evidence:** pytest run of 2026-11-26: `assert 500 == 404` for `GET /api/message/30` after deleting it.
