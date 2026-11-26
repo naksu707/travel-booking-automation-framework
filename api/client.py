@@ -4,6 +4,7 @@ Small client for the Restful Booker Platform APIs, built on Playwright's APIRequ
 All services sit behind the website under /api/<service>:
   auth   POST /api/auth/login | /validate | /logout
   room   GET/POST /api/room/   GET/PUT/DELETE /api/room/{id}
+  booking POST /api/booking/ (public)   GET /api/booking/?roomid=   GET/PUT/DELETE /api/booking/{id} (admin)
 
 Logging in does not return the token in the body: the auth service sets a cookie named "token",
 and the room service reads that cookie on create, update and delete.
@@ -55,6 +56,24 @@ class RestfulBookerApi:
 
     def delete_room(self, room_id: int, token: str | None = "current") -> APIResponse:
         return self._send("DELETE", f"/api/room/{room_id}", headers=self._auth_cookie(token))
+
+    # ---------- bookings ----------
+
+    def create_booking(self, booking: dict) -> APIResponse:
+        """Guests book without logging in, so no token is sent."""
+        return self._send("POST", "/api/booking/", data=booking)
+
+    def get_booking(self, booking_id: int, token: str | None = "current") -> APIResponse:
+        return self._send("GET", f"/api/booking/{booking_id}", headers=self._auth_cookie(token))
+
+    def list_bookings(self, room_id: int, token: str | None = "current") -> APIResponse:
+        return self._send("GET", "/api/booking/", params={"roomid": str(room_id)}, headers=self._auth_cookie(token))
+
+    def update_booking(self, booking_id: int, booking: dict, token: str | None = "current") -> APIResponse:
+        return self._send("PUT", f"/api/booking/{booking_id}", data=booking, headers=self._auth_cookie(token))
+
+    def delete_booking(self, booking_id: int, token: str | None = "current") -> APIResponse:
+        return self._send("DELETE", f"/api/booking/{booking_id}", headers=self._auth_cookie(token))
 
     # ---------- helpers ----------
 

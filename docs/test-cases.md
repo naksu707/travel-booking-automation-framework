@@ -37,7 +37,36 @@ Admin credentials: `admin` / `password` (public demo data).
 | TC-ROOM-10 | Prices outside 1–999 are rejected | Create rooms with price 0 and 1000 | 400 for both | API | Medium |
 | TC-ROOM-11 | Every room type can be created | Postman run with `room-types.csv` (Single, Double, Twin, Family, Suite) | Each iteration creates, reads, updates and deletes the room | PM | Medium |
 
+## Guest booking
+
+| ID | Title | Steps | Expected result | Layers | Priority |
+|---|---|---|---|---|---|
+| TC-BOOK-01 | Guest books a room | Open a room with free dates, click **Reserve Now**, fill first name, last name, email and phone, click **Reserve Now** | "Booking Confirmed" is shown with the check-in and check-out dates | UI, API, PM | Critical |
+| TC-BOOK-02 | Price summary | Open a £120 room for 3 nights | Total is £400: 3 × £120 + £25 cleaning fee + £15 service fee | UI | High |
+| TC-BOOK-03 | Guest details are required | Click **Reserve Now** with the form empty | "Firstname should not be blank" and "Lastname should not be blank" are shown; no booking is made | UI, API, PM | High |
+| TC-BOOK-04 | Invalid email is rejected | Book with email `not-an-email` | An error is shown (UI); 400 with a message (API) | UI, API | Medium |
+| TC-BOOK-05 | Name and phone lengths are checked | Book with first name of 2 or 19 letters, last name of 2 letters, phone of 3 or 22 digits | 400 with a message for each | API | Medium |
+| TC-BOOK-06 | The same dates cannot be booked twice | Book a room, then book the same dates again (API, Postman, UI) | 409 Conflict (API); an error message and no confirmation (UI). **UI fails: BUG-003** (the page crashes) | UI, API, PM | Critical |
+| TC-BOOK-07 | Overlapping dates cannot be booked | Book 4 nights, then book dates that start 2 days later | 409 Conflict | API, PM | Critical |
+| TC-BOOK-08 | A stay can start the day the previous one ends | Book a stay, then book from its check-out day | 201 Created | API | High |
+| TC-BOOK-09 | Check-out must be after check-in | Book with check-out on the check-in day, and before it | 409 Conflict | API, PM | High |
+| TC-BOOK-10 | A booking in the past is rejected | Book dates that ended a week ago | 400 or 409. **Fails: BUG-002** (201 Created) | API, PM | High |
+| TC-BOOK-11 | Admin reads and lists bookings | With the admin token, read a booking by id and list the bookings of its room | 200 with the guest's data | API, PM | High |
+| TC-BOOK-12 | Guest data is private | Read a booking or the room's bookings without a token, or with an invalid one | 403 Forbidden | API, PM | Critical |
+| TC-BOOK-13 | Admin deletes a booking | Delete a booking, then read it | 202, then 404 | API, PM | High |
+| TC-BOOK-14 | Deleting a booking frees its dates | Delete a booking, then book the same dates | 201 Created | API | Medium |
+| TC-BOOK-15 | A guest cannot delete a booking | Delete a booking without a token | 403 Forbidden | API | Critical |
+| TC-BOOK-16 | Cancel returns to the calendar | Click **Reserve Now**, then **Cancel** | The calendar and **Reserve Now** are shown again, without the form | UI | Low |
+
+## UI vs. API consistency
+
+| ID | Title | Steps | Expected result | Layers | Priority |
+|---|---|---|---|---|---|
+| TC-INT-01 | A booking made in the website is saved | Book in the website, then list the room's bookings through the API | Exactly one booking, with the guest's name and the same dates | UI + API | Critical |
+| TC-INT-02 | Dates booked in the website are taken | Book in the website, then book the same dates through the API | 409 Conflict | UI + API | Critical |
+
 ## Test data
 
+- Booking tests create a new room for each test, so their dates are always free, and delete the bookings and the room at the end.
 - Every test creates its own rooms with a unique name (`QA1234` from pytest, `PM1234` from Postman) and deletes them at the end, so runs never depend on the demo's data or leave rooms behind.
 - The demo is shared and resets regularly; no test relies on rooms that already exist.

@@ -48,11 +48,11 @@ The project tests the platform from three angles:
 |---|:---:|:---:|:---:|---|
 | Authentication: admin login, invalid credentials, logout, token validation | ✅ | ✅ | ✅ | ✅ Done |
 | Rooms: list, details, create, update and delete (admin) | ✅ | ✅ | ✅ | 🔄 API and Postman done, UI next |
-| Guest booking: check availability, book a room, required fields, invalid dates, confirmation | ✅ | ✅ | ✅ | Planned |
-| Booking management: bookings in the admin report, double booking of the same dates | ✅ | ✅ | ✅ | Planned |
+| Guest booking: book a room, price summary, required fields, invalid dates, confirmation | ✅ | ✅ | ✅ | ✅ Done |
+| Booking management: admin reads, lists and deletes bookings; double and overlapping bookings | | ✅ | ✅ | ✅ API and Postman done |
 | Contact form: send a message, field validation, message in the admin inbox | ✅ | ✅ | ✅ | Planned |
 | Branding: hotel name, contact details and map shown on the website | ✅ | ✅ | ✅ | Planned |
-| UI vs. API consistency: what the website shows matches the API | ✅ | ✅ | | Planned |
+| UI vs. API consistency: what the website shows matches the API | ✅ | ✅ | | 🔄 Booking done |
 
 ### Risk-based priorities
 
@@ -63,6 +63,8 @@ The project tests the platform from three angles:
 | **Medium** | Branding, navigation, secondary validation messages |
 
 Detailed test cases are in [`docs/test-cases.md`](docs/test-cases.md), and the defects found in [`docs/defects.md`](docs/defects.md).
+
+**Defects found so far:** 3, all reproduced by automated checks: a 500 error when reading a deleted room (BUG-001), bookings accepted for past dates (BUG-002) and a crash of the reservation page when the dates are already taken (BUG-003).
 
 ---
 
@@ -179,7 +181,7 @@ playwright install chromium
 # All Playwright tests (UI, API and integration)
 pytest
 
-# Only one group: smoke, ui, api
+# Only one group: smoke, ui, api, integration
 pytest -m smoke
 
 # Watch the browser
@@ -190,7 +192,7 @@ npm install -g newman newman-reporter-htmlextra
 newman run postman/collections/restful-booker-platform.postman_collection.json \
   -e postman/environments/public-demo.postman_environment.json \
   -d postman/data/room-types.csv \
-  --folder Auth --folder Rooms \
+  --folder Auth --folder Rooms --folder Booking \
   -r cli,htmlextra --reporter-htmlextra-export newman/report.html
 
 # Only the checks that expose open defects (they fail on purpose)
@@ -217,7 +219,7 @@ GitHub Actions runs two jobs on every push to `main` and on every pull request:
 
 - [x] Framework core: pytest, Playwright, Page Objects, API client, fixtures and configuration
 - [x] Postman collection and environment: authentication and rooms
-- [ ] Guest booking flow (UI, API and Postman)
+- [x] Guest booking flow (UI, API and Postman)
 - [ ] Contact form and admin messages
 - [ ] Admin panel: rooms and bookings
 - [ ] Branding

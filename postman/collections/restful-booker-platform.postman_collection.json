@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "58ee5944-568c-427c-b1d4-69654742a01d",
     "name": "Restful Booker Platform",
-    "description": "API checks for the Restful Booker Platform: admin authentication and the room lifecycle (create, read, update, delete). Run the folders in order: Rooms uses the token saved by Auth. The \"Known defects\" folder exposes open defects and is left out of the normal run.",
+    "description": "API checks for the Restful Booker Platform: admin authentication, the room lifecycle and guest bookings. Run the folders in order: Rooms and Booking use the token saved by Auth. The \"Known defects\" folder exposes open defects and is left out of the normal run.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "item": [
@@ -558,6 +558,505 @@
       ]
     },
     {
+      "name": "Booking",
+      "description": "A guest books a room: dates, double booking, date rules and guest details. Uses the token saved by Auth.",
+      "item": [
+        {
+          "name": "Create a room for the bookings",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Each run books its own new room, so the dates are always free",
+                  "pm.environment.set(\"bookingRoomName\", \"BK\" + Math.floor(1000 + Math.random() * 9000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.environment.set(\"bookingRoomId\", pm.response.json().roomid);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomName\": \"{{bookingRoomName}}\",\n  \"type\": \"Double\",\n  \"accessible\": false,\n  \"image\": \"/images/room2.jpg\",\n  \"description\": \"Room for the booking checks of the Postman collection.\",\n  \"features\": [\"WiFi\"],\n  \"roomPrice\": 120\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          }
+        },
+        {
+          "name": "Book the room as a guest",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const iso = d => d.toISOString().slice(0, 10);",
+                  "",
+                  "// A stay of 3 nights between 2 and 23 months ahead",
+                  "const checkin = new Date();",
+                  "checkin.setDate(checkin.getDate() + 60 + Math.floor(Math.random() * 640));",
+                  "const checkout = new Date(checkin);",
+                  "checkout.setDate(checkout.getDate() + 3);",
+                  "const overlap = new Date(checkin);",
+                  "overlap.setDate(overlap.getDate() + 1);",
+                  "",
+                  "pm.environment.set(\"checkin\", iso(checkin));",
+                  "pm.environment.set(\"checkout\", iso(checkout));",
+                  "pm.environment.set(\"overlapCheckin\", iso(overlap));",
+                  "pm.environment.set(\"guestFirstname\", [\"Maria\", \"Lucas\", \"Sofia\", \"Mateo\"][Math.floor(Math.random() * 4)]);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "",
+                  "const created = pm.response.json();",
+                  "pm.environment.set(\"bookingId\", created.bookingid);",
+                  "",
+                  "pm.test(\"The booking is returned with an id and the guest's data\", () => {",
+                  "    pm.expect(created.bookingid).to.be.above(0);",
+                  "    pm.expect(created.booking.roomid).to.eql(Number(pm.environment.get(\"bookingRoomId\")));",
+                  "    pm.expect(created.booking.firstname).to.eql(pm.environment.get(\"guestFirstname\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/booking/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "booking",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomid\": {{bookingRoomId}},\n  \"firstname\": \"{{guestFirstname}}\",\n  \"lastname\": \"Ospina\",\n  \"depositpaid\": false,\n  \"bookingdates\": {\n    \"checkin\": \"{{checkin}}\",\n    \"checkout\": \"{{checkout}}\"\n  },\n  \"email\": \"guest@example.com\",\n  \"phone\": \"01234567890\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Admin reads the booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"It is the guest's booking\", () => {",
+                  "    pm.expect(pm.response.json().firstname).to.eql(pm.environment.get(\"guestFirstname\"));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/booking/{{bookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "booking",
+                "{{bookingId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "A guest cannot read the booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/booking/{{bookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "booking",
+                "{{bookingId}}"
+              ]
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Book the same dates again",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Double booking is refused with 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/booking/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "booking",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomid\": {{bookingRoomId}},\n  \"firstname\": \"{{guestFirstname}}\",\n  \"lastname\": \"Ospina\",\n  \"depositpaid\": false,\n  \"bookingdates\": {\n    \"checkin\": \"{{checkin}}\",\n    \"checkout\": \"{{checkout}}\"\n  },\n  \"email\": \"guest@example.com\",\n  \"phone\": \"01234567890\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Book overlapping dates",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Overlapping dates are refused with 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/booking/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "booking",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomid\": {{bookingRoomId}},\n  \"firstname\": \"{{guestFirstname}}\",\n  \"lastname\": \"Ospina\",\n  \"depositpaid\": false,\n  \"bookingdates\": {\n    \"checkin\": \"{{overlapCheckin}}\",\n    \"checkout\": \"{{checkout}}\"\n  },\n  \"email\": \"guest@example.com\",\n  \"phone\": \"01234567890\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Book with check-out before check-in",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/booking/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "booking",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomid\": {{bookingRoomId}},\n  \"firstname\": \"{{guestFirstname}}\",\n  \"lastname\": \"Ospina\",\n  \"depositpaid\": false,\n  \"bookingdates\": {\n    \"checkin\": \"{{checkout}}\",\n    \"checkout\": \"{{checkin}}\"\n  },\n  \"email\": \"guest@example.com\",\n  \"phone\": \"01234567890\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Book without a first name",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"The error explains the missing first name\", () => {",
+                  "    pm.expect(pm.response.json().fieldErrors).to.include(\"Firstname should not be blank\");",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/booking/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "booking",
+                ""
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomid\": {{bookingRoomId}},\n  \"firstname\": \"\",\n  \"lastname\": \"Ospina\",\n  \"depositpaid\": false,\n  \"bookingdates\": {\n    \"checkin\": \"{{checkin}}\",\n    \"checkout\": \"{{checkout}}\"\n  },\n  \"email\": \"guest@example.com\",\n  \"phone\": \"01234567890\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          }
+        },
+        {
+          "name": "Admin deletes the booking",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 202\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/booking/{{bookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "booking",
+                "{{bookingId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "The deleted booking is gone",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/booking/{{bookingId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "booking",
+                "{{bookingId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete the room of the bookings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 202\", () => pm.response.to.have.status(202));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Cookie",
+                "value": "token={{token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/room/{{bookingRoomId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "room",
+                "{{bookingRoomId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Known defects",
       "description": "Checks that expose open defects (see docs/defects.md). Left out of the normal run; run alone with --folder \"Known defects\".",
       "item": [
@@ -675,6 +1174,76 @@
                   "language": "json"
                 }
               }
+            }
+          }
+        },
+        {
+          "name": "BUG-002 \u00b7 A booking in the past is rejected",
+          "protocolProfileBehavior": {
+            "disableCookies": true
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A stay that ended a week ago",
+                  "const iso = d => d.toISOString().slice(0, 10);",
+                  "const checkin = new Date(); checkin.setDate(checkin.getDate() - 10);",
+                  "const checkout = new Date(); checkout.setDate(checkout.getDate() - 7);",
+                  "pm.environment.set(\"pastCheckin\", iso(checkin));",
+                  "pm.environment.set(\"pastCheckout\", iso(checkout));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// BUG-002: the API accepts the booking with 201 Created",
+                  "pm.test(\"A booking in the past is rejected (400 or 409)\", () => pm.expect(pm.response.code).to.be.oneOf([400, 409]));",
+                  "",
+                  "// If it was accepted, delete it so the demo is left clean",
+                  "if (pm.response.code === 201) {",
+                  "    pm.sendRequest({",
+                  "        url: pm.environment.get(\"baseUrl\") + \"/api/booking/\" + pm.response.json().bookingid,",
+                  "        method: \"DELETE\",",
+                  "        header: { Cookie: \"token=\" + pm.environment.get(\"token\") }",
+                  "    });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"roomid\": {{roomId}},\n  \"firstname\": \"Maria\",\n  \"lastname\": \"Ospina\",\n  \"depositpaid\": false,\n  \"bookingdates\": {\n    \"checkin\": \"{{pastCheckin}}\",\n    \"checkout\": \"{{pastCheckout}}\"\n  },\n  \"email\": \"guest@example.com\",\n  \"phone\": \"01234567890\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/booking/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "booking",
+                ""
+              ]
             }
           }
         },

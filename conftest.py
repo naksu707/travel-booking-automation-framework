@@ -4,6 +4,7 @@ from playwright.sync_api import Playwright
 
 import config
 from api.client import RestfulBookerApi
+from data.rooms import a_room
 
 
 @pytest.fixture(scope="session")
@@ -45,3 +46,22 @@ def created_rooms(admin_api):
     yield room_ids
     for room_id in room_ids:
         admin_api.delete_room(room_id)
+
+
+@pytest.fixture
+def room(admin_api, created_rooms) -> dict:
+    """A new room only for this test, so its dates are always free; deleted afterwards."""
+    response = admin_api.create_room(a_room(type="Double", roomPrice=120))
+    assert response.status == 201, f"could not create the test room: {response.status} {response.text()}"
+    created = response.json()
+    created_rooms.append(created["roomid"])
+    return created
+
+
+@pytest.fixture
+def created_bookings(admin_api):
+    """Collects the ids of the bookings a test creates and deletes them afterwards."""
+    booking_ids: list[int] = []
+    yield booking_ids
+    for booking_id in booking_ids:
+        admin_api.delete_booking(booking_id)
