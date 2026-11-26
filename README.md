@@ -45,11 +45,22 @@ The project tests the platform from three angles:
 
 | | |
 |---|---|
-| **100** automated tests in the normal run | 69 API · 26 UI · 5 integration (parametrized cases counted one by one) |
+| **100** automated tests in the normal run | 69 API · 26 UI · 5 integration (parametrized cases counted one by one) · **100% passing** |
 | **13** checks that reproduce open defects | Tagged `known_defect`, run on demand |
-| **38** Postman requests | Run 5 times, once per room type: **over 450 assertions** per run |
+| **38** Postman requests | Run 5 times, once per room type: **190 requests and 485 assertions** per run · **0 failed** |
 | **67** documented test cases | [`docs/test-cases.md`](docs/test-cases.md) |
 | **8** defects found | [`docs/defects.md`](docs/defects.md), one of them critical |
+
+---
+
+## 📊 Latest results
+
+Every push to `main` runs the whole suite in GitHub Actions and publishes both reports to **[GitHub Pages](https://naksu707.github.io/travel-booking-automation-framework/)**.
+
+| Allure report · Playwright for Python | Newman report · Postman collection |
+|:---:|:---:|
+| [![Allure report: 100 test cases, 100% passed](docs/images/allure-report.png)](https://naksu707.github.io/travel-booking-automation-framework/allure/index.html) | [![Newman report: 190 requests, 485 assertions, 0 failed](docs/images/newman-report.png)](https://naksu707.github.io/travel-booking-automation-framework/newman/index.html) |
+| 100 test cases · 100% passed | 5 iterations · 485 assertions · 0 failed |
 
 ---
 
