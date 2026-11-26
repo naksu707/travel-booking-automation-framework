@@ -13,7 +13,7 @@ def test_branding_changed_in_the_api_is_shown_on_the_website(page: Page, admin_a
     new_branding = changed_branding(original_branding)
     assert admin_api.update_branding(new_branding).status == 202
 
-    # The website caches the branding for up to 60 seconds
+    # The website caches the branding, so it can take a few minutes to show the change
     home = HomePage(page).open().reload_until_hotel_is(new_branding["name"])
 
     expect(home.location).to_contain_text(new_branding["address"]["line1"])

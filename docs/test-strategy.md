@@ -47,7 +47,7 @@ The split follows the test pyramid: most checks are API tests (fast, stable), fe
 | The demo restarts and answers `502` for a few seconds | The API client retries only gateway errors (502, 503, 504), up to 3 times |
 | Other people change or delete data at the same time | Unique test data; never rely on data the test did not create |
 | The demo resets its database regularly | Each test creates and cleans its own data within a few seconds |
-| The website caches the branding for up to 60 seconds | Tests that check a branding change on the website reload until it shows (up to 90 s) |
+| The website caches the branding (60 s in its own server, longer when read from CI) | Tests that check a branding change on the website reload every 10 s until it shows (up to 3 min) |
 | The database reset also ends every login | The API client logs in again once when the admin token answers 403 |
 
 ## 7. Defect management

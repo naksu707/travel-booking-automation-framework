@@ -36,13 +36,15 @@ class HomePage(BasePage):
         self.submit_button.click()
         return self
 
-    def reload_until_hotel_is(self, name: str, timeout_s: int = 90):
-        """The website caches the branding for up to 60 seconds, so a change made through the
-        API or the admin panel is not shown at once: reload until the hotel name appears."""
+    def reload_until_hotel_is(self, name: str, timeout_s: int = 180):
+        """The website caches the branding: up to 60 seconds in its own server, and longer when
+        it is read from far away (seen from GitHub Actions). A change made through the API or the
+        admin panel is not shown at once, so the page is reloaded every 10 seconds until the
+        hotel name appears, for up to 3 minutes."""
         deadline = time.monotonic() + timeout_s
         while True:
             try:
-                expect(self.welcome).to_have_text(f"Welcome to {name}", timeout=5_000)
+                expect(self.welcome).to_have_text(f"Welcome to {name}", timeout=10_000)
                 return self
             except AssertionError:
                 if time.monotonic() > deadline:
