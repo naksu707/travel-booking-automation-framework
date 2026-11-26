@@ -273,6 +273,13 @@ GitHub Actions runs on every push to `main` and on every pull request:
 
 ---
 
+
+> [!NOTE]
+> **Project status: Completed ✅**
+> This repository is finished and is no longer being updated. All projects were last verified to work correctly as of **November 26, 2026**. Later changes to browsers, libraries or dependencies may affect how some projects run.
+
+---
+
 <div align="center">
 
 Made by 💜 **[Maria Jose Ospina](https://github.com/naksu707)** 💜
