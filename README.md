@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏨 Travel Booking Automation Framework
+# Travel Booking Automation Framework
 
 **UI and API test automation for a hotel booking platform, with Playwright for Python and Postman collections run by Newman**
 
